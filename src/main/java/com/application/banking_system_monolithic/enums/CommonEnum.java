@@ -10,5 +10,7 @@ public enum CommonEnum {
     InProgress,
     Accepted,
     Rejected,
-    Pending
+    Pending,
+    Active,
+    Inactive
 }
