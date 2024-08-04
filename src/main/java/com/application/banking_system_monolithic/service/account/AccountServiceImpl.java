@@ -1,5 +1,6 @@
 package com.application.banking_system_monolithic.service.account;
 
+import com.application.banking_system_monolithic.config.exception.ClientSideException;
 import com.application.banking_system_monolithic.dto.CommonResponse;
 import com.application.banking_system_monolithic.dto.TransactionDto;
 import com.application.banking_system_monolithic.entity.account.AccountDetails;
@@ -64,10 +65,10 @@ public class AccountServiceImpl implements AccountService {
                     accountService.saveTransaction(dto, accountDetailsTo.get(), accountDetailsFrom.get());
                     return new CommonResponse(200, true, "Successfully Debited", null);
                 } else {
-                    response.setMessage("Insufficient Balance");
+                    throw new ClientSideException("Insufficient Balance");
                 }
             } else {
-                response.setMessage("Invalid Accounts");
+                throw new ClientSideException("Invalid Accounts");
             }
         }
         return response;
@@ -86,7 +87,7 @@ public class AccountServiceImpl implements AccountService {
                 return new CommonResponse(200, true, "Successfully Credited", null);
             }
         } else {
-            response.setMessage("Account Number Not Found");
+            throw new ClientSideException("Account Number Not Found");
         }
         return response;
     }

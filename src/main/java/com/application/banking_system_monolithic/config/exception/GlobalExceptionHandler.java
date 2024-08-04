@@ -33,6 +33,13 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(commonResponse, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(value = ClientSideException.class)
+    public ResponseEntity<CommonResponse> clientCommonException(ClientSideException ex) {
+        printException(ex);
+        CommonResponse commonResponse = new CommonResponse(400, false, ex.getMessage(), null);
+        return new ResponseEntity<>(commonResponse, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(value = Exception.class)
     public ResponseEntity<CommonResponse> commonException(Exception ex) {
         printException(ex);
