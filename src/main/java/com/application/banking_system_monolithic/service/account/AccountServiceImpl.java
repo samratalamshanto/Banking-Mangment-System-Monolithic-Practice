@@ -64,10 +64,10 @@ public class AccountServiceImpl implements AccountService {
                     accountService.saveTransaction(dto, accountDetailsTo.get(), accountDetailsFrom.get());
                     return new CommonResponse(200, true, "Successfully Debited", null);
                 } else {
-                    response.setData("Insufficient Balance");
+                    response.setMessage("Insufficient Balance");
                 }
             } else {
-                response.setData("Invalid Accounts");
+                response.setMessage("Invalid Accounts");
             }
         }
         return response;
