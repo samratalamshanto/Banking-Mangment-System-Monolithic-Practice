@@ -17,6 +17,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Slf4j
@@ -50,12 +51,12 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    @Override
     public CommonResponse loginUser(LoginRequest loginRequest) {
         User user = authenticate(loginRequest);
         LoginResponse loginResp = new LoginResponse();
         loginResp.setToken(jwtUtilsService.generateToken(user));
         loginResp.setRefreshToken(jwtUtilsService.generateToken(user));
+        loginResp.setLoggedInTime(LocalDateTime.now());
 
         CommonResponse commonResponse = new CommonResponse(200, true, "Successfully logged in", loginResp);
         return commonResponse;

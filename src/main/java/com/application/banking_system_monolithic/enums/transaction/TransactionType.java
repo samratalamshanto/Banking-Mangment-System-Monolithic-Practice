@@ -5,5 +5,15 @@ import lombok.Getter;
 @Getter
 public enum TransactionType {
     Debit,
-    Credit
+    Credit;
+
+    public static TransactionType getValue(String value) {
+        if (value.equals("Debit")) {
+            return TransactionType.Debit;
+        } else if (value.equals("Cebit")) {
+            return TransactionType.Credit;
+        } else {
+            return null;
+        }
+    }
 }

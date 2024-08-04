@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class LoggerAspect {
 
-    @Around(value = "within(com.application.banking_system_monolithic..*) && !within(com.application.banking_system_monolithic.config.security.jwt..*)")
+    @Around(value = "within(com.application.banking_system_monolithic.service..*) && within(com.application.banking_system_monolithic.controller..*)")
     public Object log(final ProceedingJoinPoint joinPoint) throws Throwable {
         final String methodName = joinPoint.getSignature().getName();
         final String className = joinPoint.getTarget().getClass().getSimpleName();

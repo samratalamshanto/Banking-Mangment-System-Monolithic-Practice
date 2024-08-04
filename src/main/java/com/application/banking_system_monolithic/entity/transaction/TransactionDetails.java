@@ -2,6 +2,7 @@ package com.application.banking_system_monolithic.entity.transaction;
 
 import com.application.banking_system_monolithic.entity.CommonAttributes;
 import com.application.banking_system_monolithic.entity.account.AccountDetails;
+import com.application.banking_system_monolithic.enums.transaction.TransactionType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -17,7 +18,9 @@ public class TransactionDetails extends CommonAttributes {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String transactionNumber;
-    private String transactionType;
+    @Enumerated(EnumType.STRING)
+    private TransactionType transactionType;
+    private double transactionAmount;
     @ManyToOne
     private AccountDetails transactionFromAccount;
     @ManyToOne

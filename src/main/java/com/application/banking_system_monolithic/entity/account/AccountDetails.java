@@ -16,6 +16,7 @@ public class AccountDetails extends CommonAttributes {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    private String accountNumber;
     @OneToOne(cascade = CascadeType.ALL)
     private User accountHolder;
     private double balance;
