@@ -55,9 +55,9 @@ public class AccountServiceImpl implements AccountService {
             Optional<AccountDetails> accountDetailsFrom = accountRepo.findByAccountNumber(dto.getAccountNumberFrom());
             List<AccountDetails> list = new ArrayList<>();
             if (accountDetailsTo.isPresent() && accountDetailsFrom.isPresent()) {
-                if (accountDetailsTo.get().getBalance() >= dto.getAmount()) {
-                    accountDetailsTo.get().setBalance(accountDetailsTo.get().getBalance() - dto.getAmount());
-                    accountDetailsFrom.get().setBalance(accountDetailsFrom.get().getBalance() + dto.getAmount());
+                if (accountDetailsFrom.get().getBalance() >= dto.getAmount()) {
+                    accountDetailsTo.get().setBalance(accountDetailsTo.get().getBalance() + dto.getAmount());
+                    accountDetailsFrom.get().setBalance(accountDetailsFrom.get().getBalance() - dto.getAmount());
                     list.add(accountDetailsFrom.get());
                     list.add(accountDetailsTo.get());
                     accountRepo.saveAll(list);
