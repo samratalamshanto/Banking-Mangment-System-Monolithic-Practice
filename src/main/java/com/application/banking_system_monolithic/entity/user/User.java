@@ -33,8 +33,6 @@ public class User extends CommonAttributes implements UserDetails {
     private String phone;
     @Enumerated(EnumType.STRING)
     private RoleEnum roles;
-    @Enumerated(EnumType.STRING)
-    private CommonEnum status;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

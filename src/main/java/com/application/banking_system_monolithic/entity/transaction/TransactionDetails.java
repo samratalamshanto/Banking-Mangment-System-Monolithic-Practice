@@ -21,6 +21,7 @@ public class TransactionDetails extends CommonAttributes {
     @Enumerated(EnumType.STRING)
     private TransactionType transactionType;
     private double transactionAmount;
+    private String accountNumber;
     @ManyToOne
     private AccountDetails transactionFromAccount;
     @ManyToOne

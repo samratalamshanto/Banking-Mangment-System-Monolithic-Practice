@@ -10,7 +10,7 @@ public enum TransactionType {
     public static TransactionType getValue(String value) {
         if (value.equals("Debit")) {
             return TransactionType.Debit;
-        } else if (value.equals("Cebit")) {
+        } else if (value.equals("Credit")) {
             return TransactionType.Credit;
         } else {
             return null;

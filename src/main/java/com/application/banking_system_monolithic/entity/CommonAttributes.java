@@ -1,8 +1,12 @@
 package com.application.banking_system_monolithic.entity;
 
+import com.application.banking_system_monolithic.enums.CommonEnum;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.MappedSuperclass;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.LastModifiedDate;
 
 import java.time.LocalDateTime;
 
@@ -11,6 +15,16 @@ import java.time.LocalDateTime;
 public class CommonAttributes {
     @CreationTimestamp
     private LocalDateTime createdDT;
+    @LastModifiedDate
     private LocalDateTime updatedDT;
     private LocalDateTime deletedDT;
+    private String createdByUsername;
+    private String updatedByUsername;
+    private String deletedByUsername;
+    private Long createdBy;
+    private Long updatedBy;
+    private Long deletedBy;
+
+    @Enumerated(EnumType.STRING)
+    private CommonEnum status = CommonEnum.Active;
 }

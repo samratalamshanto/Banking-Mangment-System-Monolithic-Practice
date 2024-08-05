@@ -1,16 +1,20 @@
 package com.application.banking_system_monolithic.service.account;
 
 import com.application.banking_system_monolithic.config.exception.ClientSideException;
+import com.application.banking_system_monolithic.config.security.jwt.JwtUtilsService;
 import com.application.banking_system_monolithic.dto.CommonResponse;
 import com.application.banking_system_monolithic.dto.TransactionDto;
+import com.application.banking_system_monolithic.entity.CommonAttributes;
 import com.application.banking_system_monolithic.entity.account.AccountDetails;
 import com.application.banking_system_monolithic.entity.transaction.TransactionDetails;
 import com.application.banking_system_monolithic.entity.user.User;
 import com.application.banking_system_monolithic.enums.transaction.TransactionType;
 import com.application.banking_system_monolithic.repo.account.AccountRepo;
 import com.application.banking_system_monolithic.repo.transaction.TransactionRepo;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -31,9 +35,11 @@ import java.util.Optional;
 public class AccountServiceImpl implements AccountService {
     private final AccountRepo accountRepo;
     private final TransactionRepo transactionRepo;
+    private final JwtUtilsService jwtUtilsService;
     @Autowired
     @Lazy
     AccountService accountService;
+    ModelMapper modelMapper = new ModelMapper();
 
     @Override
     public void createAccount(User user) {
@@ -49,61 +55,96 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, isolation = Isolation.REPEATABLE_READ)
-    public CommonResponse debitOperation(TransactionDto dto) {
-        CommonResponse response = new CommonResponse(400, false, "Data not found.", null);
+    public CommonResponse debitOperation(TransactionDto dto, HttpServletRequest request) {
+        List<AccountDetails> list = new ArrayList<>();
+
         if (!ObjectUtils.isEmpty(dto.getAccountNumberTo()) && !ObjectUtils.isEmpty(dto.getAccountNumberFrom())) {
-            Optional<AccountDetails> accountDetailsTo = accountRepo.findByAccountNumber(dto.getAccountNumberTo());
-            Optional<AccountDetails> accountDetailsFrom = accountRepo.findByAccountNumber(dto.getAccountNumberFrom());
-            List<AccountDetails> list = new ArrayList<>();
-            if (accountDetailsTo.isPresent() && accountDetailsFrom.isPresent()) {
-                if (accountDetailsFrom.get().getBalance() >= dto.getAmount()) {
-                    accountDetailsTo.get().setBalance(accountDetailsTo.get().getBalance() + dto.getAmount());
-                    accountDetailsFrom.get().setBalance(accountDetailsFrom.get().getBalance() - dto.getAmount());
-                    list.add(accountDetailsFrom.get());
-                    list.add(accountDetailsTo.get());
+            Optional<AccountDetails> toAccountDetails = accountRepo.findByAccountNumber(dto.getAccountNumberTo());
+            Optional<AccountDetails> fromAccountDetails = accountRepo.findByAccountNumber(dto.getAccountNumberFrom());
+
+            if (toAccountDetails.isPresent() && fromAccountDetails.isPresent()) {
+                if (fromAccountDetails.get().getBalance() >= dto.getAmount()) {
+                    toAccountDetails.get().setBalance(toAccountDetails.get().getBalance() + dto.getAmount());
+                    fromAccountDetails.get().setBalance(fromAccountDetails.get().getBalance() - dto.getAmount());
+                    onUpdateOperation(toAccountDetails.get(), request);
+                    onUpdateOperation(fromAccountDetails.get(), request);
+                    list.add(fromAccountDetails.get());
+                    list.add(toAccountDetails.get());
                     accountRepo.saveAll(list);
-                    accountService.saveTransaction(dto, accountDetailsTo.get(), accountDetailsFrom.get());
-                    return new CommonResponse(200, true, "Successfully Debited", null);
+                    List<TransactionDetails> txList = accountService.saveTransaction(dto, fromAccountDetails.get(), toAccountDetails.get(), request);
+                    return new CommonResponse(200, true, "Successfully Debited", txList);
                 } else {
                     throw new ClientSideException("Insufficient Balance");
                 }
             } else {
                 throw new ClientSideException("Invalid Accounts");
             }
+        } else {
+            throw new ClientSideException("Invalid Accounts");
         }
-        return response;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, isolation = Isolation.REPEATABLE_READ)
-    public CommonResponse creditOperation(TransactionDto dto) {
-        CommonResponse response = new CommonResponse(400, false, "Data not found.", null);
-
+    public CommonResponse creditOperation(TransactionDto dto, HttpServletRequest request) {
         if (!ObjectUtils.isEmpty(dto.getAccountNumberTo())) {
             Optional<AccountDetails> accountDetails = accountRepo.findByAccountNumber(dto.getAccountNumberTo());
             if (accountDetails.isPresent()) {
                 accountDetails.get().setBalance(accountDetails.get().getBalance() + dto.getAmount());
+                onUpdateOperation(accountDetails.get(), request);
                 accountRepo.save(accountDetails.get());
-                accountService.saveTransaction(dto, accountDetails.get(), null);
-                return new CommonResponse(200, true, "Successfully Credited", null);
+                List<TransactionDetails> txList = accountService.saveTransaction(dto, accountDetails.get(), null, request);
+                return new CommonResponse(200, true, "Successfully Credited", txList);
+            } else {
+                throw new ClientSideException("Account Not Found.");
             }
         } else {
-            throw new ClientSideException("Account Number Not Found");
+            throw new ClientSideException("Account Number Is Empty.");
         }
-        return response;
     }
 
 
-    public TransactionDetails saveTransaction(TransactionDto dto, AccountDetails accountDetailsTo, AccountDetails accountDetailsFrom) {
-        TransactionDetails transactionDetails = new TransactionDetails();
-        transactionDetails.setTransactionNumber(getTransactionNumber());
-        transactionDetails.setTransactionType(TransactionType.getValue(dto.getTransactionType()));
-        transactionDetails.setTransactionAmount(dto.getAmount());
-        transactionDetails.setTransactionToAccount(accountDetailsTo);
-        if (!ObjectUtils.isEmpty(accountDetailsFrom)) {
-            transactionDetails.setTransactionFromAccount(accountDetailsFrom);
+    public List<TransactionDetails> saveTransaction(TransactionDto dto, AccountDetails fromAccountDetails,
+                                                    AccountDetails toAccountDetails, HttpServletRequest request) {
+        List<TransactionDetails> list = new ArrayList<>();
+
+
+        TransactionDetails fromTransactionDetails = new TransactionDetails();
+        fromTransactionDetails.setTransactionNumber(getTransactionNumber());
+        fromTransactionDetails.setTransactionAmount(dto.getAmount());
+        fromTransactionDetails.setTransactionFromAccount(fromAccountDetails);
+        fromTransactionDetails.setTransactionType(TransactionType.getValue(dto.getTransactionType()));
+        fromTransactionDetails.setAccountNumber(dto.getAccountNumberTo());
+        onCreateOperation(fromTransactionDetails, request);
+
+        if (!ObjectUtils.isEmpty(toAccountDetails) && TransactionType.Debit.toString().equals(dto.getTransactionType())) {
+            fromTransactionDetails.setTransactionToAccount(toAccountDetails);
+
+            TransactionDetails toTransactionDetails = new TransactionDetails();
+            modelMapper.map(fromTransactionDetails, toTransactionDetails);
+            toTransactionDetails.setTransactionType(TransactionType.Credit);
+            toTransactionDetails.setAccountNumber(toAccountDetails.getAccountNumber());
+            list.add(toTransactionDetails);
         }
-        transactionDetails = transactionRepo.save(transactionDetails);
-        return transactionDetails;
+
+        list.add(fromTransactionDetails);
+
+
+        list = transactionRepo.saveAll(list);
+        return list;
+    }
+
+    public CommonResponse getTransactionDetails(String accountNumber, HttpServletRequest request) {
+        if (!ObjectUtils.isEmpty(accountNumber)) {
+            Optional<AccountDetails> accountDetails = accountRepo.findByAccountNumber(accountNumber);
+            if (accountDetails.isPresent()) {
+                List<TransactionDetails> list = transactionRepo.findAllByAccountNumberOrderByCreatedDTDesc(accountNumber);
+                return new CommonResponse(200, true, "Successfully Retrieved", list);
+            } else {
+                throw new ClientSideException("Account Number Not Found");
+            }
+        } else {
+            throw new ClientSideException("Account Number Is Empty.");
+        }
     }
 
     private String getTransactionNumber() {
@@ -119,5 +160,17 @@ public class AccountServiceImpl implements AccountService {
         int userIdLen = userId.length(), fullLen = accountNumber.length();
         accountNumber = new String(accountNumber.substring(0, fullLen - userIdLen) + userId);
         return accountNumber;
+    }
+
+    public void onCreateOperation(CommonAttributes attributes, HttpServletRequest request) {
+        User user = jwtUtilsService.getUserFromToken(request);
+        attributes.setCreatedBy(user.getId());
+        attributes.setCreatedByUsername(user.getUsername());
+    }
+
+    public void onUpdateOperation(CommonAttributes attributes, HttpServletRequest request) {
+        User user = jwtUtilsService.getUserFromToken(request);
+        attributes.setUpdatedBy(user.getId());
+        attributes.setUpdatedByUsername(user.getUsername());
     }
 }

@@ -18,6 +18,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -54,8 +56,14 @@ public class UserServiceImpl implements UserService {
     public CommonResponse loginUser(LoginRequest loginRequest) {
         User user = authenticate(loginRequest);
         LoginResponse loginResp = new LoginResponse();
-        loginResp.setToken(jwtUtilsService.generateToken(user));
-        loginResp.setRefreshToken(jwtUtilsService.generateToken(user));
+
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userName", user.getUsername());
+        claims.put("userId", user.getId());
+        claims.put("email", user.getEmail());
+
+        loginResp.setToken(jwtUtilsService.generateToken(claims, user));
+        loginResp.setRefreshToken(jwtUtilsService.generateRefreshToken(claims, user));
         loginResp.setLoggedInTime(LocalDateTime.now());
 
         CommonResponse commonResponse = new CommonResponse(200, true, "Successfully logged in", loginResp);

@@ -1,13 +1,16 @@
 package com.application.banking_system_monolithic.config.security.jwt;
 
+import com.application.banking_system_monolithic.entity.user.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
@@ -59,7 +62,7 @@ public class JwtUtilsService {
     }
 
 
-    public String generateToken(UserDetails userDetails) {
+    public String generateToken(User userDetails) {
         return generateToken(new HashMap<>(), userDetails);
     }
 
@@ -85,5 +88,22 @@ public class JwtUtilsService {
                 .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
+    }
+
+    public User getUserFromToken(HttpServletRequest request) {
+        String token = request.getHeader("Authorization");
+        token = token.substring(7);
+        Claims claims = extractAllClaims(token);
+        User user = new User();
+        if (claims.containsKey("userName")) {
+            user.setUsername(claims.get("userName", String.class));
+        }
+        if (claims.containsKey("email")) {
+            user.setEmail(claims.get("email", String.class));
+        }
+        if (claims.containsKey("userId")) {
+            user.setId(claims.get("userId", Long.class));
+        }
+        return user;
     }
 }
