@@ -2,6 +2,7 @@ package com.application.banking_system_monolithic.repo.transaction;
 
 import com.application.banking_system_monolithic.entity.transaction.TransactionDetails;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -9,4 +10,9 @@ import java.util.List;
 @Repository
 public interface TransactionRepo extends JpaRepository<TransactionDetails, Long> {
     List<TransactionDetails> findAllByAccountNumberOrderByCreatedDTDesc(String accountNumber);
+
+    @Query("select t.accountNumber as accountNumber, sum(t.transactionAmount) as totalAmount " +
+            " from TransactionDetails as t " +
+            " group by t.accountNumber ")
+    List<TransactionDTO> getDemo();
 }
