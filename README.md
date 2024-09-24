@@ -14,7 +14,7 @@ Allow users to deposit money into their accounts securely. The API will update t
 4. Cash Withdrawal
 Enable users to withdraw money from their accounts, ensuring sufficient balance and updating the account balance and transaction history accordingly.
 
-65 Fund Transfer
+5. Fund Transfer
 Facilitate fund transfers between accounts. Users can transfer money from their accounts to other accounts securely, updating account balances, and recording transaction histories for both sender and receiver.
 
 6. Error Handling
