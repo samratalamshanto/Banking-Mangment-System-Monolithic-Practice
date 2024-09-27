@@ -36,3 +36,25 @@ Token-based authorization using JWT ensures secure communication between the cli
 3. Notifications are sent using Kafka.
 4. AOP based Logging
 5. Global Exception Handling
+
+## Sample Postman Request & Response:
+
+1. Withdraw:
+Request Body:
+```json
+{
+    "transactionType": "Withdraw",
+    "amount": 1000.0,
+    "accountNumberFrom": "A-0000000002"
+}
+```
+Response Body:
+```json
+{
+    "code": 400,
+    "success": false,
+    "message": "Insufficient Balance",
+    "data": null
+}
+```
+
