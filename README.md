@@ -25,7 +25,7 @@ Token-based authorization using JWT ensures secure communication between the cli
 
 ## Framework Details:
 1. Spring Boot (3.3.2)
-2. Java (21)
+2. Java (17)
 3. Spring Security
 4. PostgreSQL
 5. Kafka
