@@ -15,8 +15,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
@@ -36,9 +34,6 @@ public class AccountServiceImpl implements AccountService {
     private final AccountRepo accountRepo;
     private final TransactionRepo transactionRepo;
     private final JwtUtilsService jwtUtilsService;
-    @Autowired
-    @Lazy
-    AccountService accountService;
     ModelMapper modelMapper = new ModelMapper();
 
     @Override
@@ -71,7 +66,7 @@ public class AccountServiceImpl implements AccountService {
                     list.add(fromAccountDetails.get());
                     list.add(toAccountDetails.get());
                     accountRepo.saveAll(list);
-                    List<TransactionDetails> txList = accountService.saveTransaction(dto, fromAccountDetails.get(), toAccountDetails.get(), request);
+                    List<TransactionDetails> txList = saveTransaction(dto, fromAccountDetails.get(), toAccountDetails.get(), request);
                     return new CommonResponse(200, true, "Successfully Debited", txList);
                 } else {
                     throw new ClientSideException("Insufficient Balance");
@@ -92,7 +87,7 @@ public class AccountServiceImpl implements AccountService {
                 accountDetails.get().setBalance(accountDetails.get().getBalance() + dto.getAmount());
                 onUpdateOperation(accountDetails.get(), request);
                 accountRepo.save(accountDetails.get());
-                List<TransactionDetails> txList = accountService.saveTransaction(dto, accountDetails.get(), null, request);
+                List<TransactionDetails> txList = saveTransaction(dto, accountDetails.get(), null, request);
                 return new CommonResponse(200, true, "Successfully Credited", txList);
             } else {
                 throw new ClientSideException("Account Not Found.");
@@ -105,32 +100,32 @@ public class AccountServiceImpl implements AccountService {
 
     public List<TransactionDetails> saveTransaction(TransactionDto dto, AccountDetails fromAccountDetails,
                                                     AccountDetails toAccountDetails, HttpServletRequest request) {
-        List<TransactionDetails> list = new ArrayList<>();
+        try {
+            List<TransactionDetails> list = new ArrayList<>();
 
+            TransactionDetails fromTransactionDetails = new TransactionDetails();
+            fromTransactionDetails.setTransactionNumber(getTransactionNumber());
+            fromTransactionDetails.setTransactionAmount(dto.getAmount());
+            fromTransactionDetails.setTransactionFromAccount(fromAccountDetails);
+            fromTransactionDetails.setTransactionType(TransactionType.getValue(dto.getTransactionType()));
+            fromTransactionDetails.setAccountNumber(dto.getAccountNumberTo());
+            onCreateOperation(fromTransactionDetails, request);
 
-        TransactionDetails fromTransactionDetails = new TransactionDetails();
-        fromTransactionDetails.setTransactionNumber(getTransactionNumber());
-        fromTransactionDetails.setTransactionAmount(dto.getAmount());
-        fromTransactionDetails.setTransactionFromAccount(fromAccountDetails);
-        fromTransactionDetails.setTransactionType(TransactionType.getValue(dto.getTransactionType()));
-        fromTransactionDetails.setAccountNumber(dto.getAccountNumberTo());
-        onCreateOperation(fromTransactionDetails, request);
+            if (!ObjectUtils.isEmpty(toAccountDetails) && TransactionType.Debit.toString().equals(dto.getTransactionType())) {
+                fromTransactionDetails.setTransactionToAccount(toAccountDetails);
 
-        if (!ObjectUtils.isEmpty(toAccountDetails) && TransactionType.Debit.toString().equals(dto.getTransactionType())) {
-            fromTransactionDetails.setTransactionToAccount(toAccountDetails);
-
-            TransactionDetails toTransactionDetails = new TransactionDetails();
-            modelMapper.map(fromTransactionDetails, toTransactionDetails);
-            toTransactionDetails.setTransactionType(TransactionType.Credit);
-            toTransactionDetails.setAccountNumber(toAccountDetails.getAccountNumber());
-            list.add(toTransactionDetails);
+                TransactionDetails toTransactionDetails = new TransactionDetails();
+                modelMapper.map(fromTransactionDetails, toTransactionDetails);
+                toTransactionDetails.setTransactionType(TransactionType.Credit);
+                toTransactionDetails.setAccountNumber(toAccountDetails.getAccountNumber());
+                list.add(toTransactionDetails);
+            }
+            list.add(fromTransactionDetails);
+            list = transactionRepo.saveAll(list);
+            return list;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-
-        list.add(fromTransactionDetails);
-
-
-        list = transactionRepo.saveAll(list);
-        return list;
     }
 
     public CommonResponse getTransactionDetails(String accountNumber, HttpServletRequest request) {
@@ -147,6 +142,44 @@ public class AccountServiceImpl implements AccountService {
         }
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW, isolation = Isolation.REPEATABLE_READ)
+    public CommonResponse withdrawOperation(TransactionDto dto, HttpServletRequest request) {
+        if (!ObjectUtils.isEmpty(dto.getAccountNumberFrom())) {
+            Optional<AccountDetails> fromAccountDetails = accountRepo.findByAccountNumber(dto.getAccountNumberFrom());
+
+            if (fromAccountDetails.isPresent()) {
+                if (fromAccountDetails.get().getBalance() >= dto.getAmount()) {
+                    fromAccountDetails.get().setBalance(fromAccountDetails.get().getBalance() - dto.getAmount());
+                    onUpdateOperation(fromAccountDetails.get(), request);
+                    accountRepo.save(fromAccountDetails.get());
+                    List<TransactionDetails> txList = saveTransaction(dto, fromAccountDetails.get(), null, request);
+                    return new CommonResponse(200, true, "Successfully Withdraw", txList);
+                } else {
+                    throw new ClientSideException("Insufficient Balance");
+                }
+            } else {
+                throw new ClientSideException("Invalid Accounts");
+            }
+        } else {
+            throw new ClientSideException("Invalid Accounts");
+        }
+    }
+
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public CommonResponse getAccountDetails(String accountNumber, HttpServletRequest request) {
+        User loggedInUser = jwtUtilsService.getUserFromToken(request);
+
+        Optional<AccountDetails> accountDetails = accountRepo.findByAccountNumber(accountNumber);
+        if (accountDetails.isPresent()) {
+            if (!accountDetails.get().getAccountHolder().getId().equals(loggedInUser.getId())) {
+                return new CommonResponse(404, true, "Not Authorized to get account details", null);
+            }
+            return new CommonResponse(200, true, "Successfully get the data", accountDetails);
+        } else {
+            return new CommonResponse(204, true, "Account Not Found", null);
+        }
+    }
+
     private String getTransactionNumber() {
         String txNum = "T";
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
@@ -158,7 +191,7 @@ public class AccountServiceImpl implements AccountService {
         String accountNumber = "A-0000000000";
         String userId = user.getId().toString();
         int userIdLen = userId.length(), fullLen = accountNumber.length();
-        accountNumber = new String(accountNumber.substring(0, fullLen - userIdLen) + userId);
+        accountNumber = accountNumber.substring(0, fullLen - userIdLen) + userId;
         return accountNumber;
     }
 

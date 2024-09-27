@@ -6,11 +6,9 @@ import com.application.banking_system_monolithic.entity.account.AccountDetails;
 import com.application.banking_system_monolithic.entity.transaction.TransactionDetails;
 import com.application.banking_system_monolithic.entity.user.User;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-@Service
 public interface AccountService {
     void createAccount(User user);
 
@@ -21,4 +19,8 @@ public interface AccountService {
     List<TransactionDetails> saveTransaction(TransactionDto dto, AccountDetails fromAccountDetails, AccountDetails toAccountDetails, HttpServletRequest request);
 
     CommonResponse getTransactionDetails(String accountNumber, HttpServletRequest request);
+
+    CommonResponse withdrawOperation(TransactionDto dto, HttpServletRequest request);
+
+    CommonResponse getAccountDetails(String accountNumber, HttpServletRequest request);
 }

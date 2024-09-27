@@ -4,6 +4,7 @@ import lombok.Getter;
 
 @Getter
 public enum TransactionType {
+    Withdraw,
     Debit,
     Credit;
 
@@ -12,6 +13,8 @@ public enum TransactionType {
             return TransactionType.Debit;
         } else if (value.equals("Credit")) {
             return TransactionType.Credit;
+        } else if (value.equals("Withdraw")) {
+            return TransactionType.Withdraw;
         } else {
             return null;
         }
